@@ -132,7 +132,7 @@ def count_injury_percentage(path_to_patient_file, lung_model, covid_model):
     patient = read_nii(path_to_patient_file)
     num_slices = patient.shape[2]
     inj_squares_list = []
-    for i in range(200,202):
+    for i in range(num_slices):
         ct_slice = patient[:,:,i]
         cropped_ct, result, lung_mask = get_lung_crop(ct_slice, lung_model)
         if result:
