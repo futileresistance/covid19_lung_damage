@@ -6,7 +6,7 @@ from lungmask.lung_model import model as lung_model
 from utils import count_injury_percentage
 
 patient_scans_path = 'test_cases/ct/coronacases_org_001.nii'
-_, results = count_injury_percentage(patient_scans_path, lung_model, covid_model)
+_, results = count_injury_percentage(patient_scans_path, lung_model, covid_model) 
 print(results)
 
 
