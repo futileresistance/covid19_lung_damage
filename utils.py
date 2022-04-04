@@ -84,6 +84,7 @@ def _cropper(ct_img, orig_ct):
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     areas = [cv2.contourArea(c) for c in contours]
     if len(areas) < 2:
+        print('return', 'areas < 2',len(areas),len(contours))
         return None, False
     x = np.argsort(areas)
 
@@ -104,15 +105,19 @@ def _cropper(ct_img, orig_ct):
     left_dist2, right_dist2 = compute_dist(x2, y2, w2, h2)
 
     decision = make_decision(left_dist1, right_dist1, left_dist2, right_dist2, area1, area2)
-
+    
     if decision:
+        print('decision', ':')
         x, y, w, h = get_max_coords(coords1, coords2)
         if x < 0 or y < 0:
+            print('decision', 'x<0ory<0')
             return ct_img, False
+        print('decision', 'true !')                    
         cropped_ct = orig_ct[y:y + h, x:x + w]
         cropped_ct = cv2.resize(cropped_ct, dsize=(256, 256), interpolation=cv2.INTER_AREA)
         return cropped_ct, True
     else:
+        print('decision', 'False')                    
         return ct_img, False
 
 
@@ -130,15 +135,22 @@ def count_relative_square(image1, image2):
 
 def count_injury_percentage(path_to_patient_file, lung_model, covid_model):
     patient = read_nii(path_to_patient_file)
+    print(1)
     num_slices = patient.shape[2]
     inj_squares_list = []
-    for i in range(num_slices):
+    print(2)
+    for i in range(100,102):#
+        print(3,i)
         ct_slice = patient[:,:,i]
         cropped_ct, result, lung_mask = get_lung_crop(ct_slice, lung_model)
+        print(4, result)
         if result:
+            print(5)
             predict = make_covid_pred(cropped_ct, covid_model)
             rel_sq = count_relative_square(predict[0], lung_mask)
             inj_squares_list.append(rel_sq)
+            print(6)
+    print(7)        
     pretty_result = f"Lung damage percentage: {np.mean(inj_squares_list)*100:0.2f}%"
     return inj_squares_list, pretty_result
 
