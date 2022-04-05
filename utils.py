@@ -4,15 +4,32 @@ import cv2
 import torch
 import gdown
 import os.path
+import nibabel.nicom.dicomwrappers
+import pydicom
+import nibabel.nicom.dicomreaders
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def read_dcm(filepath):
+    dcm = pydicom.dcmread(filepath)
+    array_uint8 = dcm.pixel_array
+    array = array_uint8.astype(np.float64)
+    print('array.shape',array.shape)
+    print(array.dtype == np.dtype(np.float64))
+    return read_ct(array)
+    
 def read_nii(filepath):
     ct_scan = nib.load(filepath)
     array = ct_scan.get_fdata()
+    print('array.shape',array.shape)
+    print(array.dtype == np.dtype(np.float64))
+    return read_ct(array)
+    
+def read_ct(array):
     array = np.rot90(np.array(array))
     print('patients data loaded...')
     return array
+    
 
 def make_covid_pred(image, covid_model):
     image = (image*255).astype(np.uint8)
@@ -133,13 +150,20 @@ def count_relative_square(image1, image2):
     square2 = np.sum(image2)
     return square1/square2
 
-def count_injury_percentage(path_to_patient_file, lung_model, covid_model):
+def count_injury_percentage_nii(path_to_patient_file, lung_model, covid_model):
     patient = read_nii(path_to_patient_file)
+    return count_injury_percentage(patient,lung_model,covid_model)
+
+def count_injury_percentage_dcm(path_to_patient_file, lung_model, covid_model):
+    patient = read_dcm(path_to_patient_file)
+    return count_injury_percentage(patient,lung_model,covid_model)
+
+def count_injury_percentage(patient, lung_model, covid_model):
     print(1)
     num_slices = patient.shape[2]
     inj_squares_list = []
-    print(2)
-    for i in range(100,102):#
+    print(2,"num_slices",num_slices)
+    for i in range(162,167):#512num_slices
         print(3,i)
         ct_slice = patient[:,:,i]
         cropped_ct, result, lung_mask = get_lung_crop(ct_slice, lung_model)
@@ -154,18 +178,23 @@ def count_injury_percentage(path_to_patient_file, lung_model, covid_model):
     pretty_result = f"Lung damage percentage: {np.mean(inj_squares_list)*100:0.2f}%"
     return inj_squares_list, pretty_result
 
-
 def download_items():
-    ct_path = 'test_cases/ct/coronacases_org_001.nii'
+    ct_path_nii = 'test_cases/ct/coronacases_org_001.nii'
+    ct_path_dcm = 'test_cases/ct/coronacases_org_001.DCM'
     mask_path = 'test_cases/mask/coronacases_001.nii'
     covid_model_path = 'covid_segm_model/lungNET_take3'
     lung_model_path = 'lungmask/lung_seg_model.pth'
 
 
-    if not os.path.exists(ct_path):
-        ct_url = 'https://drive.google.com/uc?id=1mxxV1IM18ES1-8IUocBqSEsFhoTl1pUY'
-        print('downloading test ct ...')
-        gdown.download(ct_url, ct_path, quiet=False)
+    if not os.path.exists(ct_path_nii):
+        ct_url_nii = 'https://drive.google.com/uc?id=1mxxV1IM18ES1-8IUocBqSEsFhoTl1pUY'
+        print('downloading test ct nii ...')
+        gdown.download(ct_url_nii, ct_path_nii, quiet=False)
+        
+    if not os.path.exists(ct_path_dcm):
+        ct_url_dcm = 'https://drive.google.com/file/d/1pgn9f8Spm70EvDktBlZZiQ6sqSCvXE8o/view?usp=sharing'
+        print('downloading test ct dcm...')
+        gdown.download(ct_url_dcm, ct_path_dcm, quiet=False)
 
     if not os.path.exists(mask_path):
         mask_url = 'https://drive.google.com/uc?id=1JxX-4w7CkMxifq5w2L7BQJBiT0ZtYJOS'
