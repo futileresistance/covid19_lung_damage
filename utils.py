@@ -162,6 +162,7 @@ def count_injury_percentage(patient, lung_model, covid_model):
     print(1)
     num_slices = patient.shape[2]
     inj_squares_list = []
+    lung_masks = []
     print(2,"num_slices",num_slices)
     for i in range(162,167):#512num_slices
         print(3,i)
@@ -174,9 +175,11 @@ def count_injury_percentage(patient, lung_model, covid_model):
             rel_sq = count_relative_square(predict[0], lung_mask)
             inj_squares_list.append(rel_sq)
             print(6)
+        lung_mask = cv2.resize(lung_mask, dsize=(ct_slice.shape[0], ct_slice.shape[1]), interpolation=cv2.INTER_AREA) 
+        lung_masks.append(lung_mask)        
     print(7)        
     pretty_result = f"Lung damage percentage: {np.mean(inj_squares_list)*100:0.2f}%"
-    return inj_squares_list, pretty_result
+    return inj_squares_list, pretty_result, lung_masks
 
 def download_items():
     ct_path_nii = 'test_cases/ct/coronacases_org_001.nii'
