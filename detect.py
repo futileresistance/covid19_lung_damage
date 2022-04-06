@@ -8,10 +8,10 @@ from flask import Flask
 
 patient_scans_path_nii = 'test_cases/ct/coronacases_org_001.nii'
 patient_scans_path_dcm = 'test_cases/ct/coronacases_org_001.DCM'
-
-download_items()
-_, results = count_injury_percentage_nii(patient_scans_path_nii, lung_model, covid_model) 
-print(results)
+#
+#download_items()
+#_, results = count_injury_percentage_nii(patient_scans_path_nii, lung_model, covid_model) 
+#print(results)
     
 app = Flask(__name__)
 @app.route("/")
@@ -26,9 +26,9 @@ from flask import request
 def upload_file():
     if request.method == 'POST':
         f = request.files['file']
-        f.save(patient_scans_path)
+        f.save(patient_scans_path_dcm)
         download_items()
-        _, results = count_injury_percentage(patient_scans_path, lung_model, covid_model) 
+        _, results = count_injury_percentage_dcm(patient_scans_path_dcm, lung_model, covid_model) 
         print(results)
         return results
 
