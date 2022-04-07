@@ -9,9 +9,10 @@ from flask import Flask
 patient_scans_path_nii = 'test_cases/ct/coronacases_org_001.nii'
 patient_scans_path_dcm = 'test_cases/ct/coronacases_org_001.DCM'
 
-download_items()
-_, results,masks = count_injury_percentage_dcm(patient_scans_path_dcm, lung_model, covid_model) 
-print(resultStrMasksImgBytesArrayToJson(results,masks))
+#download_items()
+#_, results,masks = count_injury_percentage_dcm(patient_scans_path_dcm, lung_model, covid_model) 
+#resultStrMasksImgBytesArrayToJson(results,masks)
+#print(resultStrMasksImgBytesArrayToJson(results,masks))
 
 app = Flask(__name__)
 @app.route("/")
@@ -27,9 +28,11 @@ def upload_file():
     if request.method == 'POST':
         f = request.files['file']
         f.save(patient_scans_path_dcm)
-        download_items()
+        #download_items()
         _, results,masks = count_injury_percentage_dcm(patient_scans_path_dcm, lung_model, covid_model) 
-        return resultStrMasksImgBytesArrayToJson(results,masks)
+        jso_string = resultStrMasksImgBytesArrayToJson(results,masks)
+        print('return ',jso_string)
+        return jso_string 
 
 
 

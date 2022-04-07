@@ -10,19 +10,24 @@ import cv2
 import base64
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#test cv 
+png_path = 'test_cases/ct/'
+png_name = 'coronacases_org.png'
 
 def read_dcm(filepath):
     dcm = pydicom.dcmread(filepath)
     array_uint8 = dcm.pixel_array
     array = array_uint8.astype(np.float64)
-    print('array.shape',array.shape)
+    if array.ndim == 2:
+        array = array[..., None]
     print(array.dtype == np.dtype(np.float64))
     return read_ct(array)
     
 def read_nii(filepath):
     ct_scan = nib.load(filepath)
     array = ct_scan.get_fdata()
-    print('array.shape',array.shape)
+    if array.ndim == 2:
+        array = array[..., None]
     print(array.dtype == np.dtype(np.float64))
     return read_ct(array)
     
@@ -49,6 +54,7 @@ def diceScore(inputs, targets):
 
 def prepare_slice(image_slice):
     img = image_slice
+     
     max_value = np.max(img)
 
     if max_value <= 255:
@@ -57,6 +63,7 @@ def prepare_slice(image_slice):
         img[img < -1024] = -1024
         img[img > 600] = 600
         img = np.divide((img + 1024), 1624)
+    
     img = cv2.resize(img, dsize=(256, 256), interpolation=cv2.INTER_AREA)
     img_tens = torch.tensor(img, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
     return img, img_tens
@@ -132,7 +139,7 @@ def _cropper(ct_img, orig_ct):
             return ct_img, False
         print('decision', 'true !')                    
         cropped_ct = orig_ct[y:y + h, x:x + w]
-        cropped_ct = cv2.resize(cropped_ct, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+        cropped_ct = cv2.resize(cropped_ct, dsize=(256, 256), interpolation=cv2.INTER_AREA)  
         return cropped_ct, True
     else:
         print('decision', 'False')                    
@@ -143,7 +150,7 @@ def get_lung_crop(image_slice, model):
     image_slice, prepared_slice = prepare_slice(image_slice)
     lung_mask = get_lung_mask(model, prepared_slice)
     masked_slice = cv2.bitwise_and(image_slice, image_slice, mask=lung_mask)
-    cr_ct, res = _cropper(masked_slice, image_slice)
+    cr_ct, res = _cropper(masked_slice, image_slice) 
     return cr_ct, res, lung_mask
 
 def count_relative_square(image1, image2):
@@ -153,19 +160,20 @@ def count_relative_square(image1, image2):
 
 def count_injury_percentage_nii(path_to_patient_file, lung_model, covid_model):
     patient = read_nii(path_to_patient_file)
-    return count_injury_percentage(patient,lung_model,covid_model)
+    return count_injury_percentage(patient, patient.shape[2], lung_model,covid_model)
 
 def count_injury_percentage_dcm(path_to_patient_file, lung_model, covid_model):
     patient = read_dcm(path_to_patient_file)
-    return count_injury_percentage(patient,lung_model,covid_model)
+    return count_injury_percentage(patient, patient.shape[2], lung_model, covid_model)
 
-def count_injury_percentage(patient, lung_model, covid_model):
+
+
+def count_injury_percentage(patient, num_slices, lung_model, covid_model):
     print(1)
-    num_slices = patient.shape[2]
     inj_squares_list = []
     lung_masks = []
-    print(2,"num_slices",num_slices)
-    for i in range(162,167):#512num_slices
+    print(2, "num_slices", num_slices)
+    for i in range(num_slices):
         print(3,i)
         ct_slice = patient[:,:,i]
         cropped_ct, result, lung_mask = get_lung_crop(ct_slice, lung_model)
@@ -176,11 +184,13 @@ def count_injury_percentage(patient, lung_model, covid_model):
             rel_sq = count_relative_square(predict[0], lung_mask)
             inj_squares_list.append(rel_sq)
             print(6)
-        lung_mask = cv2.resize(lung_mask, dsize=(ct_slice.shape[0], ct_slice.shape[1]), interpolation=cv2.INTER_AREA) 
+        lung_mask = cv2.resize(lung_mask, dsize=(ct_slice.shape[0], ct_slice.shape[1]), interpolation=cv2.INTER_AREA)
         lung_masks.append(lung_mask)        
     print(7)        
     pretty_result = f"Lung damage percentage: {np.mean(inj_squares_list)*100:0.2f}%"
     return inj_squares_list, pretty_result, lung_masks
+
+
 
 def resultStrMasksImgBytesArrayToJson(results, masks):
     print(results)
@@ -188,10 +198,17 @@ def resultStrMasksImgBytesArrayToJson(results, masks):
     results_json_string = json.dumps({'results' : str(results)})
     my_dict = json.loads(results_json_string)
     for i in range(len(masks)):
-        data = masks[i]
-        retval, buffer = cv2.imencode('.png', data)
-        png_as_text = base64.b64encode(buffer)
-        y = {"picture"+str(i):str(png_as_text)}
+        data = masks[i]  
+        print(data.shape)
+        cv2.imwrite(png_path+str(i)+png_name,data)
+        #cv2.imshow("test",cr_ct)
+        #cv2.waitKey(0) 
+        data = data.astype(np.float64)
+        retval, t = cv2.imencode('.png', data)
+        s = base64.b64encode(t)
+        #cv2.imshow("test", frame)
+        #cv2.waitKey(0) 
+        y = {"picture":str(s)}#+str(i) 
         my_dict.update(y)
     return json.dumps(my_dict)
 
