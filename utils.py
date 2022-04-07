@@ -4,9 +4,10 @@ import cv2
 import torch
 import gdown
 import os.path
-import nibabel.nicom.dicomwrappers
 import pydicom
-import nibabel.nicom.dicomreaders
+import json
+import cv2
+import base64
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -180,6 +181,19 @@ def count_injury_percentage(patient, lung_model, covid_model):
     print(7)        
     pretty_result = f"Lung damage percentage: {np.mean(inj_squares_list)*100:0.2f}%"
     return inj_squares_list, pretty_result, lung_masks
+
+def resultStrMasksImgBytesArrayToJson(results, masks):
+    print(results)
+    print("masks.len()", len(masks)) 
+    results_json_string = json.dumps({'results' : str(results)})
+    my_dict = json.loads(results_json_string)
+    for i in range(len(masks)):
+        data = masks[i]
+        retval, buffer = cv2.imencode('.png', data)
+        png_as_text = base64.b64encode(buffer)
+        y = {"picture"+str(i):str(png_as_text)}
+        my_dict.update(y)
+    return json.dumps(my_dict)
 
 def download_items():
     ct_path_nii = 'test_cases/ct/coronacases_org_001.nii'
