@@ -17,22 +17,26 @@ def read_dcm(filepath):
     dcm = pydicom.dcmread(filepath)
     array_uint8 = dcm.pixel_array
     array = array_uint8.astype(np.float64)
+
     if array.ndim == 2:
         array = array[..., None]
-    return read_ct(array)
+ 
+    return array
     
 def read_nii(filepath):
     ct_scan = nib.load(filepath)
     array = ct_scan.get_fdata()
+    
     if array.ndim == 2:
         array = array[..., None]
+        
     return read_ct(array)
     
 def read_ct(array):
     array = np.rot90(np.array(array))
     print('patients data loaded...')
+
     return array
-    
 
 def make_covid_pred(image, covid_model):
     image = (image*255).astype(np.uint8)
@@ -155,30 +159,38 @@ def count_relative_square(image1, image2):
 
 def count_injury_percentage_nii(path_to_patient_file, lung_model, covid_model):
     patient = read_nii(path_to_patient_file)
-    return count_injury_percentage(patient, patient.shape[2], lung_model,covid_model)
+    return count_injury_percentage(patient, patient.shape[2], lung_model,covid_model, False)
 
 def count_injury_percentage_dcm(path_to_patient_file, lung_model, covid_model):
     patient = read_dcm(path_to_patient_file)
-    return count_injury_percentage(patient, patient.shape[2], lung_model, covid_model)
+    return count_injury_percentage(patient, patient.shape[2], lung_model, covid_model, True)
 
-def count_injury_percentage(patient, num_slices, lung_model, covid_model):
+def count_injury_percentage(patient, num_slices, lung_model, covid_model,dcm):
+    print('count_injury_percentage1 ')
     inj_squares_list = []
     lung_masks = []
-    for i in range(num_slices):
+    pretty_result = "nan"
+    print('count_injury_percentage2 ',num_slices)
+    for i in range(num_slices):#
         ct_slice = patient[:,:,i]
         cropped_ct, result, lung_mask = get_lung_crop(ct_slice, lung_model)
         if result:
             predict = make_covid_pred(cropped_ct, covid_model)
             rel_sq = count_relative_square(predict[0], lung_mask)
             inj_squares_list.append(rel_sq)
+            pretty_result = f"{np.mean(inj_squares_list)*100:0.2f}"
+            print(pretty_result)
+        else:
+            print('nan')
         lung_mask = cv2.resize(lung_mask, dsize=(ct_slice.shape[0], ct_slice.shape[1]), interpolation=cv2.INTER_AREA)
+        
+        if(dcm):
+            lung_mask = np.rot90(np.array(lung_mask),1)
+            
         lung_masks.append(lung_mask)              
-    pretty_result = f"{np.mean(inj_squares_list)*100:0.2f}"
     return inj_squares_list, pretty_result, lung_masks
 
 def resultStrMasksImgBytesArrayToJson(results, masks,size,idx):
-    print(results)
-    print("masks.len()", len(masks)) 
     results_json_string = json.dumps({'results' : str(results)})
     my_dict = json.loads(results_json_string)
     for i in range(len(masks)):

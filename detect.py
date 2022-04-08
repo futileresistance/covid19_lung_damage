@@ -12,9 +12,10 @@ patient_scans_path_dcm = 'test_cases/ct/coronacases_org_001.DCM'
 app = Flask(__name__)
 @app.route("/")
 def test_local_files():
-    #download_items() nii files procedure
+    #download_items() #nii files procedure
+    #_, results,masks = count_injury_percentage_dcm(patient_scans_path_dcm, lung_model, covid_model) 
     #_, results,masks = count_injury_percentage_nii(patient_scans_path_nii, lung_model, covid_model) 
-    #resultStrMasksImgBytesArrayToJson(results,masks)
+    #print('! ')
     return '200 -  OK'
 
 from flask import request
@@ -23,10 +24,10 @@ def upload_file():
     if request.method == 'POST':
         f = request.files['file']
         f.save(patient_scans_path_dcm)
-        #download_items()
+        download_items()
         _, results,masks = count_injury_percentage_dcm(patient_scans_path_dcm, lung_model, covid_model) 
         jso_string = resultStrMasksImgBytesArrayToJson(results,masks,request.form['size'],request.form['idx'])
-        print('return ',jso_string)
+        #print('return ',jso_string)
         return jso_string 
 
 
