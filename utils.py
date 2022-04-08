@@ -6,7 +6,6 @@ import gdown
 import os.path
 import pydicom
 import json
-import cv2
 import base64
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -20,7 +19,6 @@ def read_dcm(filepath):
     array = array_uint8.astype(np.float64)
     if array.ndim == 2:
         array = array[..., None]
-    print(array.dtype == np.dtype(np.float64))
     return read_ct(array)
     
 def read_nii(filepath):
@@ -28,7 +26,6 @@ def read_nii(filepath):
     array = ct_scan.get_fdata()
     if array.ndim == 2:
         array = array[..., None]
-    print(array.dtype == np.dtype(np.float64))
     return read_ct(array)
     
 def read_ct(array):
@@ -132,25 +129,23 @@ def _cropper(ct_img, orig_ct):
     decision = make_decision(left_dist1, right_dist1, left_dist2, right_dist2, area1, area2)
     
     if decision:
-        print('decision', ':')
         x, y, w, h = get_max_coords(coords1, coords2)
         if x < 0 or y < 0:
-            print('decision', 'x<0ory<0')
-            return ct_img, False
-        print('decision', 'true !')                    
+            return ct_img, False                  
         cropped_ct = orig_ct[y:y + h, x:x + w]
         cropped_ct = cv2.resize(cropped_ct, dsize=(256, 256), interpolation=cv2.INTER_AREA)  
         return cropped_ct, True
-    else:
-        print('decision', 'False')                    
+    else:                   
         return ct_img, False
 
 
 def get_lung_crop(image_slice, model):
     image_slice, prepared_slice = prepare_slice(image_slice)
     lung_mask = get_lung_mask(model, prepared_slice)
+    cv2.imwrite(png_path+str(0)+png_name,lung_mask) 
     masked_slice = cv2.bitwise_and(image_slice, image_slice, mask=lung_mask)
     cr_ct, res = _cropper(masked_slice, image_slice) 
+    
     return cr_ct, res, lung_mask
 
 def count_relative_square(image1, image2):
@@ -166,33 +161,22 @@ def count_injury_percentage_dcm(path_to_patient_file, lung_model, covid_model):
     patient = read_dcm(path_to_patient_file)
     return count_injury_percentage(patient, patient.shape[2], lung_model, covid_model)
 
-
-
 def count_injury_percentage(patient, num_slices, lung_model, covid_model):
-    print(1)
     inj_squares_list = []
     lung_masks = []
-    print(2, "num_slices", num_slices)
     for i in range(num_slices):
-        print(3,i)
         ct_slice = patient[:,:,i]
         cropped_ct, result, lung_mask = get_lung_crop(ct_slice, lung_model)
-        print(4, result)
         if result:
-            print(5)
             predict = make_covid_pred(cropped_ct, covid_model)
             rel_sq = count_relative_square(predict[0], lung_mask)
             inj_squares_list.append(rel_sq)
-            print(6)
         lung_mask = cv2.resize(lung_mask, dsize=(ct_slice.shape[0], ct_slice.shape[1]), interpolation=cv2.INTER_AREA)
-        lung_masks.append(lung_mask)        
-    print(7)        
-    pretty_result = f"Lung damage percentage: {np.mean(inj_squares_list)*100:0.2f}%"
+        lung_masks.append(lung_mask)              
+    pretty_result = f"{np.mean(inj_squares_list)*100:0.2f}"
     return inj_squares_list, pretty_result, lung_masks
 
-
-
-def resultStrMasksImgBytesArrayToJson(results, masks):
+def resultStrMasksImgBytesArrayToJson(results, masks,size,idx):
     print(results)
     print("masks.len()", len(masks)) 
     results_json_string = json.dumps({'results' : str(results)})
@@ -200,16 +184,15 @@ def resultStrMasksImgBytesArrayToJson(results, masks):
     for i in range(len(masks)):
         data = masks[i]  
         print(data.shape)
-        cv2.imwrite(png_path+str(i)+png_name,data)
-        #cv2.imshow("test",cr_ct)
-        #cv2.waitKey(0) 
         data = data.astype(np.float64)
         retval, t = cv2.imencode('.png', data)
         s = base64.b64encode(t)
-        #cv2.imshow("test", frame)
-        #cv2.waitKey(0) 
-        y = {"picture":str(s)}#+str(i) 
+        y = {"picture":str(s)} 
+        w = {"size":str(size)} 
+        z = {"idx":str(idx)} 
         my_dict.update(y)
+        my_dict.update(w)
+        my_dict.update(z)
     return json.dumps(my_dict)
 
 def download_items():
