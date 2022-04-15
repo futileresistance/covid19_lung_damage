@@ -39,6 +39,8 @@ def read_ct(array):
     return array
 
 def make_covid_pred(image, covid_model):
+    if torch.cuda.is_available():
+        covid_model.cuda()
     image = (image*255).astype(np.uint8)
     image = torch.as_tensor(image / np.max(image), dtype=torch.float32).unsqueeze(0).unsqueeze(0)
     pred = covid_model(image.to(device))
@@ -70,6 +72,12 @@ def prepare_slice(image_slice):
     return img, img_tens
 
 def get_lung_mask(model, image_slice, device=device):
+    if torch.cuda.is_available():
+        model.cuda()
+        pred = model(image_slice.cuda().to(device))
+        pls = torch.max(pred, 1)[1].detach().cpu().numpy().astype(np.uint8)[0]
+        pls[pls>0] = 1
+        return pls
     pred = model(image_slice.to(device))
     pls = torch.max(pred, 1)[1].detach().cpu().numpy().astype(np.uint8)[0]
     pls[pls>0] = 1

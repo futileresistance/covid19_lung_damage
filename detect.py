@@ -30,5 +30,7 @@ def upload_file():
         #print('return ',jso_string)
         return jso_string 
 
+if __name__ == "__main__":
+    app.run(host='192.168.88.48',port=8000, debug=True)
 
 

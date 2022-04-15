@@ -6,15 +6,15 @@ and then start with
 
 _python detect.py_
 
-Tested on python 3.6.8
-Create enivironment python -m menv damage
-Activate path damage/Scripts/activate.bat
 
-Run from cmd.exe (windows 10)
-
-set FLASK_APP=detect
-export FLASK_APP=db_table.py ubuntu bionic 18.04.06
-flask run --host=0.0.0.0 
+ubuntu 18.04.06
+install python 3.6.8 
+update apt
+install docker
+tune port forwarding in network router (if any)
+change ip adress in detect.py 
+sudo docker build -t covid:latest 
+sudo docker run --net="host" covid 
  
 
 
